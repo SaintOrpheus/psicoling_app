@@ -2,6 +2,8 @@ import streamlit as st
 
 from persistencia import save_group_data, load_group_data
 from modelo_estado import inicializar_grupo, fusionar_grupo_con_base
+from logica import ganar_xp
+from utils_expedientes import resolver_expediente_opcion_unica
 
 def normalizar_grupo(grupo_id):
     if not grupo_id:
@@ -10,23 +12,6 @@ def normalizar_grupo(grupo_id):
     if not grupo_id.startswith("G"):
         grupo_id = f"G{grupo_id}"
     return grupo_id
-
-def ganar_xp(mision: int = 0, epistemico: int = 0, miembro=None):
-    st.session_state.grupo_actual["progreso"]["xp_mision"] = min(
-        st.session_state.grupo_actual["progreso"]["xp_mision"] + mision, 1000
-    )
-    st.session_state.grupo_actual["progreso"]["xp_epistemico_grupal"] += epistemico
-
-    miembro_efectivo = miembro or st.session_state.miembro_actual
-    if miembro_efectivo:
-        if miembro_efectivo not in st.session_state.grupo_actual["seguimiento_individual"]:
-            st.session_state.grupo_actual["seguimiento_individual"][miembro_efectivo] = {
-                "xp_epistemico": 0,
-                "participacion": 0.0,
-            }
-        st.session_state.grupo_actual["seguimiento_individual"][miembro_efectivo]["xp_epistemico"] += epistemico
-
-    save_group_data(st.session_state.grupo_actual)
 
 def calcular_identidad_desde_perfil(perfil_grupal: dict) -> str:
     p = perfil_grupal.get("identidad_puntos", {})
@@ -203,10 +188,10 @@ def render_sidebar_estudiante():
             "Sprints Semanales:",
             [
                 "Semana 1: Aprender a ver el lenguaje",
-                "Semana 2: Desarrollo del Lenguaje",
-                "Semana 3: El Código y la Gran Síntesis",
+                "Semana 2: Observación del desarrollo y análisis del caso",
+                "Semana 3: Aplicación experimental: Diseño de un juguete",
                 "Semana 4: Diseño Experimental",
-                "Semana 5: Lab Final y Cierre",
+                "Semana 5: Informe de experimento y Cierre",
             ],
         )
 
@@ -258,16 +243,21 @@ def render_semana_1():
             """
         )
 
-        propiedad = st.selectbox(
-            "¿Qué propiedad lingüística le permite a un niño de 4 años relatar un sueño que tuvo anoche sobre un dinosaurio?",
-            ["Selecciona...", "Productividad", "Desplazamiento", "Arbitrariedad"],
-            key="s1_propiedad",
+        resolver_expediente_opcion_unica(
+            expediente_id="s1_prop",
+            pregunta="¿Qué propiedad lingüística le permite a un niño de 4 años relatar un sueño que tuvo anoche sobre un dinosaurio?",
+            opciones=[
+                "Selecciona...",
+                "Productividad",
+                "Desplazamiento",
+                "Arbitrariedad",
+                "Doble articulación",
+            ],
+            respuesta_correcta="Desplazamiento",
+            feedback_correcto="Correcto. Aquí aparece la capacidad de referirse a hechos no presentes.",
+            feedback_incorrecto="Respuesta registrada. Revisa la propiedad de desplazamiento: permite hablar de hechos no presentes, como sueños, recuerdos o ficción.",
+            xp_epistemico=10,
         )
-        if propiedad == "Desplazamiento" and "s1_prop" not in st.session_state.grupo_actual["casos_resueltos"]:
-            st.success("Correcto. Aquí aparece la capacidad de referirse a hechos no presentes.")
-            ganar_xp(epistemico=10)
-            st.session_state.grupo_actual["casos_resueltos"].append("s1_prop")
-            save_group_data(st.session_state.grupo_actual)
 
     with st.expander("⚖️ Expediente 02: ¿Adquisición, Aprendizaje o Construcción?"):
         st.markdown(
@@ -279,79 +269,237 @@ def render_semana_1():
             """
         )
 
-        respuesta = st.radio(
-            "Si al observar al niño te centras en cómo interactúa con el entorno y cómo usa los recursos para lograr sus planes comunicativos, tu visión se alinea más con:",
-            ["Selecciona...", "La Adquisición innata (Déficit/Norma)", "La Construcción (Agencia/Comunicabilidad)"],
-            key="s1_postura",
+        resolver_expediente_opcion_unica(
+            expediente_id="s1_acq",
+            pregunta="Si al observar al niño te centras en cómo interactúa con el entorno y cómo usa los recursos para lograr sus planes comunicativos, tu visión se alinea más con:",
+            opciones=[
+                "Selecciona...",
+                "La Adquisición innata (Déficit/Norma)",
+                "El Aprendizaje (Instrucción formal)",
+                "La Construcción (Agencia/Comunicabilidad)",
+            ],
+            respuesta_correcta="La Construcción (Agencia/Comunicabilidad)",
+            feedback_correcto="Correcto. Esa postura favorece una observación menos patologizante.",
+            feedback_incorrecto="Respuesta registrada. Revisa la diferencia entre adquisición, aprendizaje y construcción: aquí el énfasis está en agencia, interacción y comunicabilidad.",
+            xp_epistemico=15,
         )
-        if (
-            respuesta == "La Construcción (Agencia/Comunicabilidad)"
-            and "s1_acq" not in st.session_state.grupo_actual["casos_resueltos"]
-        ):
-            st.success("Correcto. Esa postura favorece una observación menos patologizante.")
-            ganar_xp(epistemico=15)
-            st.session_state.grupo_actual["casos_resueltos"].append("s1_acq")
-            save_group_data(st.session_state.grupo_actual)
 
-    st.markdown("## 🔬 Taller Metodológico")
-    with st.expander("📄 La ilusión del dato crudo"):
+    with st.expander("🧪 Expediente 03: La ilusión del dato crudo"):
         st.markdown(
             """
             **Observar no es lo mismo que diagnosticar.**
             En la investigación, el evento comunicativo en vivo no es todavía el dato analizable. Al usar medios de registro y transcribir, produces una **representación mediada** que ya organiza la realidad según tus intereses teóricos.
             """
         )
-        texto_analisis = st.text_area(
-            "Reflexión de laboratorio: ¿Por qué incluir pausas, entonación o gestos en tu registro ya implica una decisión teórica?",
-            key="s1_reflexion",
+
+        from utils_expedientes import evaluar_calidad_respuesta_abierta
+
+        grupo = st.session_state.grupo_actual
+        respuestas = grupo.setdefault("perfil_grupal", {}).setdefault("respuestas_expedientes", {})
+
+        expediente_id = "s1_reflexion"
+
+        if expediente_id in respuestas:
+            respuesta_guardada = respuestas[expediente_id]["respuesta"]
+
+            st.info("Ya registraste esta reflexión en la bitácora de laboratorio.")
+            st.markdown(f"**Tu respuesta:** {respuesta_guardada}")
+
+        else:
+            texto_analisis = st.text_area(
+                "Reflexión de laboratorio: ¿Por qué incluir pausas, entonación o gestos en tu registro ya implica una decisión teórica?",
+                key="s1_reflexion_texto",
+            )
+
+            if st.button("Enviar análisis a la bitácora", key="btn_s1_reflexion"):
+                resultado = evaluar_calidad_respuesta_abierta(
+                    texto_analisis,
+                    conceptos_clave=[
+                        "pausas",
+                        "entonación",
+                        "entonacion",
+                        "gestos",
+                        "registro",
+                        "transcripción",
+                        "transcripcion",
+                        "dato",
+                        "observación",
+                        "observacion",
+                        "decisión teórica",
+                        "decision teorica",
+                        "interpretación",
+                        "interpretacion",
+                        "representación",
+                        "representacion",
+                    ],
+                    acciones_metodologicas=[
+                        "registrar",
+                        "incluir",
+                        "seleccionar",
+                        "transcribir",
+                        "interpretar",
+                        "analizar",
+                        "codificar",
+                        "observar",
+                        "decidir",
+                        "diferenciar",
+                    ],
+                    min_caracteres=120,
+                    min_palabras=20,
+                    min_conceptos=2,
+                )
+
+                if resultado["valida"]:
+                    respuestas[expediente_id] = {
+                        "respuesta": texto_analisis.strip(),
+                        "miembro": st.session_state.miembro_actual,
+                        "conceptos_encontrados": resultado["conceptos_encontrados"],
+                    }
+
+                    ganar_xp(epistemico=20)
+
+                    if expediente_id not in grupo.setdefault("casos_resueltos", []):
+                        grupo["casos_resueltos"].append(expediente_id)
+
+                    save_group_data(grupo)
+
+                    st.success("Reflexión registrada. Has mostrado una comprensión metodológica de la observación como construcción del dato.")
+                    st.rerun()
+
+                else:
+                    st.error("Tu respuesta aún no cumple con los criterios mínimos de reflexión metodológica.")
+                    for problema in resultado["problemas"]:
+                        st.warning(f"• {problema}")
+                        
+    with st.expander("⚗️ Expediente 04: El control del caos: Observar vs. Experimentar"):
+        st.markdown(
+            """
+            **La ciencia tiene distintas herramientas.**
+
+            En un experimento, el investigador manipula variables en un entorno artificial para probar causas. Sin embargo, en la observación naturalista, el investigador examina el comportamiento en las condiciones en que normalmente ocurre, sin controlarlo.
+            """
         )
-        if st.button("Enviar análisis a la bitácora", key="btn_s1_reflexion"):
-            if len(texto_analisis.strip()) > 50:
-                ganar_xp(epistemico=20)
-                st.success("Reflexión registrada.")
-            else:
-                st.warning("Tu respuesta todavía es muy breve para justificar una decisión metodológica.")
+
+        resolver_expediente_opcion_unica(
+            expediente_id="s1_obs_vs_exp",
+            pregunta="¿Por qué es preferible usar la observación naturalista en lugar de un experimento formal para estudiar el uso espontáneo del lenguaje en un niño pequeño?",
+            opciones=[
+                "Selecciona...",
+                "Porque permite manipular libremente la variable independiente para ver cómo reacciona el niño.",
+                "Porque evita que la artificialidad de la situación (ej. un laboratorio o un adulto desconocido) distorsione el comportamiento real del niño.",
+                "Porque es el único método que permite establecer con seguridad que una variable causó a la otra.",
+            ],
+            respuesta_correcta="Porque evita que la artificialidad de la situación (ej. un laboratorio o un adulto desconocido) distorsione el comportamiento real del niño.",
+            feedback_correcto="Correcto. La observación naturalista permite registrar el lenguaje en condiciones habituales.",
+            feedback_incorrecto="Respuesta registrada. Revisa la diferencia entre observación naturalista y experimento formal: aquí se busca reducir la artificialidad del contexto.",
+            xp_epistemico=15,
+        )
 
     st.divider()
-    st.markdown("## 🎯 Misión: Pre-registro del diseño observacional (15%)")
+    st.markdown("## 🎯 Misión 1: Diseño observacional inicial (15%)")
     st.info(
-        "Aquí defines tu primer compromiso metodológico. En la siguiente fase tendrás que convertir esta decisión en categorías observables y procedimiento de registro."
+        "Aquí sellas un compromiso metodológico suficiente para salir a campo: fenómeno, pregunta o hipótesis, caso, categorías iniciales y procedimiento mínimo. Todas las observaciones deben contar con registro en video."
     )
 
-    if pre_existente:
-        st.success("✅ Ya tienes un pre-registro sellado.")
+    proto_existente = entregas.get("f2_protocolo")
+
+    if pre_existente and proto_existente:
+        st.success("✅ Ya tienes un diseño observacional inicial sellado.")
         st.markdown("### 🧾 Compromiso actual")
         st.write(f"**Foco de observación:** {pre_existente.get('fenomeno', '---')}")
-        st.write(f"**Hipótesis inicial:** {pre_existente.get('hipotesis', '---')}")
-        st.write(f"**Caso anticipado:** {pre_existente.get('sujeto', '---')}")
+        st.write(f"**Hipótesis o pregunta inicial:** {pre_existente.get('hipotesis', '---')}")
+        st.write(f"**Caso previsto:** {pre_existente.get('sujeto', '---')}")
         st.write(f"**Contexto:** {pre_existente.get('contexto', '---')}")
         st.write(f"**Rol del observador:** {pre_existente.get('rol', '---')}")
-        st.caption("Este compromiso será retomado en la siguiente fase para construir el protocolo de observación.")
+        st.write("**Registro requerido:** Video")
+        st.write(f"**Categorías iniciales:** {proto_existente.get('categorias', '---')}")
+        st.write(f"**Procedimiento mínimo:** {proto_existente.get('procedimiento', '---')}")
+        st.caption("Este diseño orienta el trabajo de campo y el informe de observación de la siguiente semana.")
+
+        with st.expander("🛡️ Expediente 05: La Ética y el sujeto humano"):
+            st.markdown(
+                """
+                **¡Protocolo sellado! Pero antes de salir al campo, detente.**
+
+                En la psicolingüística moderna, las grabaciones encubiertas o el engaño sobre los fines de la investigación ya no son prácticas aceptadas. El niño y su familia son sujetos de derechos.
+                """
+            )
+
+            resolver_expediente_opcion_unica(
+                expediente_id="s1_etica_sujeto",
+                pregunta="Antes de encender tu grabadora de audio/video en el entorno del niño (Caso Único) que acabas de seleccionar, ¿cuál es el paso metodológico y ético innegociable que debes cumplir?",
+                opciones=[
+                    "Selecciona...",
+                    "Asegurarte de que el niño no se dé cuenta de que está siendo grabado para que actúe de la forma más natural posible.",
+                    "Obtener el consentimiento informado de sus cuidadores y garantizar el anonimato de sus datos y de su imagen.",
+                    "Modificar la transcripción si el niño comete demasiados errores, para proteger su historial clínico.",
+                ],
+                respuesta_correcta="Obtener el consentimiento informado de sus cuidadores y garantizar el anonimato de sus datos y de su imagen.",
+                feedback_correcto="Correcto. La observación con sujetos humanos exige consentimiento, transparencia y protección de identidad.",
+                feedback_incorrecto="Respuesta registrada. Revisa el principio ético central: consentimiento informado, anonimato y protección de identidad.",
+                xp_epistemico=15,
+            )
 
     else:
         with st.form("pre_registro_fase1"):
             st.subheader("1. Foco de observación")
             fenomeno = st.text_input(
-                "Fenómeno lingüístico a observar (ej. simplificación fonológica, sobreextensión semántica)"
+                "Fenómeno lingüístico a observar",
+                placeholder="Ej.: simplificación fonológica, sobreextensión semántica, turnos de habla, uso de gestos"
             )
             justificacion = st.text_area(
                 "Justificación psicolingüística: ¿por qué vale la pena observar este fenómeno?"
             )
-            tipo_pregunta = st.selectbox("Forma de tu compromiso inicial", ["Hipótesis", "Pregunta de investigación"])
-            hipotesis = st.text_area("Escribe tu hipótesis o pregunta guía")
-
-            st.subheader("2. Escenario de observación")
-            posible_sujeto = st.text_input("Caso único previsto (ej. sobrino de 3 años, vecina de 4 años)")
-            contexto = st.text_input("Contexto sociocomunicativo (ej. juego libre en casa, rutina en el parque)")
-            rol_obs = st.selectbox("Rol como observador", ["Participante interactuante", "Observador periférico pasivo"])
-
-            st.subheader("3. Conciencia metodológica")
-            mediacion = st.selectbox(
-                "¿Qué aspecto de tu futura observación crees que requerirá más cuidado en el registro?",
-                ["Selecciona...", "Pausas y silencios", "Entonación", "Gestos y mirada", "Turnos de habla", "Aún no lo sé"],
+            tipo_pregunta = st.selectbox(
+                "Forma de tu compromiso inicial",
+                ["Hipótesis", "Pregunta de investigación"]
+            )
+            hipotesis = st.text_area(
+                "Escribe tu hipótesis o pregunta guía"
             )
 
-            enviar = st.form_submit_button("Sellar Pre-registro de Investigación")
+            st.subheader("2. Caso y contexto de observación")
+            posible_sujeto = st.text_input(
+                "Caso único previsto",
+                placeholder="Ej.: sobrino de 3 años, prima de 2 años, niño conocido por la familia"
+            )
+            contexto = st.text_input(
+                "Contexto sociocomunicativo",
+                placeholder="Ej.: juego libre en casa, lectura compartida, rutina de alimentación"
+            )
+            rol_obs = st.selectbox(
+                "Rol como observador",
+                ["Participante interactuante", "Observador periférico pasivo"]
+            )
+
+            st.subheader("3. Diseño mínimo de observación")
+            st.caption(
+                "Define solo las decisiones necesarias para salir a campo. Las categorías pueden ajustarse cuando tengas datos reales."
+            )
+
+            objetivo = st.text_input(
+                "Objetivo de la observación",
+                placeholder="Ej.: observar cómo el niño usa gestos y vocalizaciones para pedir objetos durante el juego"
+            )
+
+            st.info(
+                "📹 Todas las observaciones deben realizarse con registro en video. Esto permitirá revisar habla, gestos, mirada, turnos e interacción."
+            )
+
+            st.markdown("#### Categorías iniciales, máximo 3")
+            cat_1 = st.text_input("Categoría 1")
+            crit_1 = st.text_area("¿Qué contará como dato para la categoría 1?")
+            cat_2 = st.text_input("Categoría 2 (opcional)")
+            crit_2 = st.text_area("¿Qué contará como dato para la categoría 2? (opcional)")
+            cat_3 = st.text_input("Categoría 3 (opcional)")
+            crit_3 = st.text_area("¿Qué contará como dato para la categoría 3? (opcional)")
+
+            proc = st.text_area(
+                "Procedimiento mínimo de campo",
+                placeholder="Describe dónde observarás, durante cuánto tiempo, qué situación propondrás o registrarás y cómo identificarás las ocurrencias en el video."
+            )
+
+            enviar = st.form_submit_button("Sellar diseño observacional inicial")
 
             if enviar:
                 fenomeno_limpio = fenomeno.strip()
@@ -359,6 +507,19 @@ def render_semana_1():
                 hipotesis_limpia = hipotesis.strip()
                 sujeto_limpio = posible_sujeto.strip()
                 contexto_limpio = contexto.strip()
+                objetivo_limpio = objetivo.strip()
+                proc_limpio = proc.strip()
+
+                categorias_lista = []
+                for nombre, criterio in [(cat_1, crit_1), (cat_2, crit_2), (cat_3, crit_3)]:
+                    nombre_limpio = nombre.strip()
+                    criterio_limpio = criterio.strip()
+                    if nombre_limpio or criterio_limpio:
+                        categorias_lista.append((nombre_limpio, criterio_limpio))
+
+                categorias_texto = "\n".join(
+                    f"- {nombre}: {criterio}" for nombre, criterio in categorias_lista
+                )
 
                 problemas = []
                 terminos_genericos = ["lenguaje", "habla", "comunicación", "comunicacion"]
@@ -367,16 +528,42 @@ def render_semana_1():
                     problemas.append("Debes definir un fenómeno lingüístico.")
                 elif fenomeno_limpio.lower() in terminos_genericos:
                     problemas.append("El fenómeno es demasiado amplio. Delimítalo mejor.")
+
                 if not justificacion_limpia or len(justificacion_limpia) < 30:
                     problemas.append("La justificación debe estar mejor argumentada.")
+
                 if not hipotesis_limpia or len(hipotesis_limpia) < 30:
                     problemas.append("La hipótesis o pregunta debe estar mejor formulada.")
+
                 if not sujeto_limpio:
                     problemas.append("Debes anticipar un caso único.")
+
                 if not contexto_limpio:
                     problemas.append("Debes definir un contexto de observación.")
-                if mediacion == "Selecciona...":
-                    problemas.append("Debes identificar al menos un aspecto que exigirá cuidado en el registro.")
+
+                if len(objetivo_limpio) < 15:
+                    problemas.append("El objetivo de observación todavía es demasiado breve.")
+
+                if not categorias_lista:
+                    problemas.append("Debes definir al menos una categoría inicial de observación.")
+
+                for i, (nombre, criterio) in enumerate(categorias_lista, start=1):
+                    if not nombre:
+                        problemas.append(f"La categoría {i} necesita un nombre.")
+                    if len(criterio) < 20:
+                        problemas.append(f"La categoría {i} necesita un criterio observable más claro.")
+
+                if len(proc_limpio) < 40:
+                    problemas.append("El procedimiento mínimo debe ser más claro y replicable.")
+
+                texto_control = (categorias_texto + " " + objetivo_limpio).lower()
+                palabras_fenomeno = [
+                    p for p in fenomeno_limpio.lower().replace(",", " ").replace(".", " ").split()
+                    if len(p) > 5
+                ]
+
+                if palabras_fenomeno and not any(p in texto_control for p in palabras_fenomeno[:4]):
+                    problemas.append("No se ve con claridad cómo tus categorías u objetivo responden al fenómeno definido.")
 
                 if problemas:
                     for p in problemas:
@@ -390,23 +577,36 @@ def render_semana_1():
                         "sujeto": sujeto_limpio,
                         "contexto": contexto_limpio,
                         "rol": rol_obs,
-                        "mediacion": mediacion,
+                        "mediacion": "Video obligatorio",
                     }
-                    ganar_xp(mision=150)
-                    st.success("✅ Pre-registro sellado. En la siguiente fase tendrás que volver esta idea observable.")
+
+                    st.session_state.grupo_actual["entregas"]["f2_protocolo"] = {
+                        "caso_unico": sujeto_limpio,
+                        "edad_caso": "---",
+                        "contexto_caso": contexto_limpio,
+                        "puente_pre": "",
+                        "objetivo": objetivo_limpio,
+                        "instrumento": "Registro en video",
+                        "baremos": "",
+                        "categorias": categorias_texto,
+                        "procedimiento": proc_limpio,
+                    }
+
+                    st.session_state.grupo_actual["perfil_grupal"]["identidad_puntos"]["desarrollo"] += 10
+                    ganar_xp(mision=200)
+                    st.success("✅ Diseño observacional inicial sellado. En la Semana 2 podrás concentrarte en el trabajo de campo y el informe de observación.")
                     st.balloons()
                     st.rerun()
 
-
 def render_semana_2():
-    st.title("🧠 Semana 2: Desarrollo del Lenguaje y Trabajo de Campo")
+    st.title("🧠 Semana 2: Observación del desarrollo y análisis del caso")
     st.info(
-        "En esta fase debes convertir tu compromiso inicial en un protocolo de observación claro, replicable y coherente con lo que sellaste en la fase anterior."
+        "En esta fase realizas la observación, entregas tu informe completo por fuera de la app y aquí registras una lectura guiada de ese informe: evidencias, categorías, consideración del desarrollo y conclusiones."
     )
 
     st.markdown("## 🧠 Expedientes de Caso")
 
-    with st.expander("🗣️ Expediente 03: Dimensiones del lenguaje infantil"):
+    with st.expander("🗣️ Expediente 06: Dimensiones del lenguaje infantil"):
         st.markdown(
             """
             **La evolución de la forma y el sentido:**
@@ -417,18 +617,23 @@ def render_semana_2():
             """
         )
 
-        fenomeno = st.radio(
-            "Si observas que un niño de 18 meses le dice 'guau guau' a un caballo, ¿qué fenómeno lingüístico estás presenciando?",
-            ["Selecciona...", "Un proceso de simplificación fonológica", "Una sobreextensión semántica", "Un error de atención conjunta"],
-            key="s2_fenomeno",
+        resolver_expediente_opcion_unica(
+            expediente_id="s2_sobreext",
+            pregunta="Si observas que un niño de 18 meses le dice 'guau guau' a un caballo, ¿qué fenómeno lingüístico estás presenciando?",
+            opciones=[
+                "Selecciona...",
+                "Un proceso de simplificación fonológica",
+                "Una sobreextensión semántica",
+                "Un error de atención conjunta",
+                "Una sobrerrestricción semántica",
+            ],
+            respuesta_correcta="Una sobreextensión semántica",
+            feedback_correcto="Correcto. Aquí no ves un 'error' aislado, sino una estrategia de categorización.",
+            feedback_incorrecto="Respuesta registrada. Revisa la dimensión léxico-semántica: la sobreextensión ocurre cuando una palabra se aplica a otros referentes por semejanza.",
+            xp_epistemico=15,
         )
-        if fenomeno == "Una sobreextensión semántica" and "s2_sobreext" not in st.session_state.grupo_actual["casos_resueltos"]:
-            st.success("Correcto. Aquí no ves un 'error' aislado, sino una estrategia de categorización.")
-            ganar_xp(epistemico=15)
-            st.session_state.grupo_actual["casos_resueltos"].append("s2_sobreext")
-            save_group_data(st.session_state.grupo_actual)
 
-    with st.expander("⚠️ Expediente 04: Hitos del desarrollo y el riesgo de patologizar"):
+    with st.expander("⚠️ Expediente 07: Hitos del desarrollo y el riesgo de patologizar"):
         st.markdown(
             """
             **Observar ≠ Diagnosticar.**
@@ -436,153 +641,228 @@ def render_semana_2():
             """
         )
 
-        postura = st.radio(
-            "Si grabas a un niño de 2 años y medio diciendo 'ota auto' (otro auto), tu rol metodológico debe ser:",
-            ["Selecciona...", "Diagnosticar un retraso del lenguaje por falta de concordancia gramatical.", "Registrarlo como un dato de consolidación morfosintáctica sin patologizar."],
-            key="s2_postura",
+        resolver_expediente_opcion_unica(
+            expediente_id="s2_patolog",
+            pregunta="Si grabas a un niño de 2 años y medio diciendo 'ota auto' (otro auto), tu rol metodológico debe ser:",
+            opciones=[
+                "Selecciona...",
+                "Diagnosticar un retraso del lenguaje por falta de concordancia gramatical.",
+                "Registrarlo como un dato de consolidación morfosintáctica sin patologizar.",
+                "Remitir a los baremos de desarrollo para vigilar posibles signos de alerta",
+            ],
+            respuesta_correcta="Registrarlo como un dato de consolidación morfosintáctica sin patologizar.",
+            feedback_correcto="Correcto. Tu tarea aquí es describir procesos, no cerrar un juicio clínico.",
+            feedback_incorrecto="Respuesta registrada. Revisa la diferencia entre descripción psicolingüística y diagnóstico clínico: este curso busca observar procesos sin patologizar.",
+            xp_epistemico=15,
         )
-        if (
-            postura == "Registrarlo como un dato de consolidación morfosintáctica sin patologizar."
-            and "s2_patolog" not in st.session_state.grupo_actual["casos_resueltos"]
-        ):
-            st.success("Correcto. Tu tarea aquí es describir procesos, no cerrar un juicio clínico.")
-            ganar_xp(epistemico=15)
-            st.session_state.grupo_actual["casos_resueltos"].append("s2_patolog")
-            save_group_data(st.session_state.grupo_actual)
 
-    st.markdown("## 🔧 Operacionalización del diseño")
+    with st.expander("👶 Expediente 08: Antes de la palabra: Precursores de la comunicación"):
+        st.markdown(
+            """
+            **La comunicación precede al lenguaje verbal.**
+
+            Antes de que aparezcan las primeras palabras, ya existen formas de comunicación intencional. Algunos precursores importantes son el contacto ocular, la sonrisa social, la atención conjunta y los señalamientos.
+
+            Los señalamientos pueden cumplir distintas funciones:
+            * **Protoimperativos:** el bebé señala para pedir algo o lograr que el adulto actúe.
+            * **Protodeclarativos:** el bebé señala para compartir atención o interés sobre algo.
+            """
+        )
+
+        resolver_expediente_opcion_unica(
+            expediente_id="s2_precursores",
+            pregunta="Si un bebé de 10 meses señala un juguete fuera de su alcance y mira alternadamente al juguete y al adulto para que se lo alcance, está realizando:",
+            opciones=[
+                "Selecciona...",
+                "Un señalamiento protodeclarativo",
+                "Un señalamiento protoimperativo",
+                "Una atención conjunta pasiva",
+            ],
+            respuesta_correcta="Un señalamiento protoimperativo",
+            feedback_correcto="Correcto. El bebé usa el señalamiento para solicitar la acción del adulto.",
+            feedback_incorrecto="Respuesta registrada. Revisa la diferencia: el protoimperativo busca que el adulto actúe; el protodeclarativo busca compartir atención o interés.",
+            xp_epistemico=15,
+        )
+
     pre = st.session_state.grupo_actual["entregas"].get("f1_pre_registro")
-    proto_existente = st.session_state.grupo_actual["entregas"].get("f2_protocolo")
+    proto = st.session_state.grupo_actual["entregas"].get("f2_protocolo")
+    informe_existente = st.session_state.grupo_actual["entregas"].get("f2_informe")
 
-    if not pre:
-        st.warning("Debes completar y sellar el pre-registro de la fase anterior para habilitar esta fase.")
-    else:
-        st.markdown("### 🧾 Compromiso recuperado de la Fase 1")
-        st.write(f"**Fenómeno:** {pre.get('fenomeno', '---')}")
-        st.write(f"**{pre.get('tipo_compromiso', 'Hipótesis')}:** {pre.get('hipotesis', '---')}")
-        st.write(f"**Caso anticipado:** {pre.get('sujeto', '---')}")
-        st.write(f"**Contexto inicial:** {pre.get('contexto', '---')}")
-        st.write(f"**Aspecto de mediación a cuidar:** {pre.get('mediacion', '---')}")
-        st.caption("Ahora debes convertir este compromiso en categorías observables, instrumento y procedimiento.")
+    st.markdown("## 🎯 Misión 2: Trabajo de campo e informe de observación")
 
-        if proto_existente:
-            st.success("✅ Ya tienes un protocolo operativo sellado.")
-            st.markdown("### 📋 Protocolo actual")
-            st.write(f"**Caso único:** {proto_existente.get('caso_unico', '---')} ({proto_existente.get('edad_caso', '---')})")
-            st.write(f"**Objetivo:** {proto_existente.get('objetivo', '---')}")
-            st.write(f"**Instrumento:** {proto_existente.get('instrumento', '---')}")
-            st.write(f"**Marco de referencia:** {proto_existente.get('baremos', '---')}")
-            st.write(f"**Puente con Fase 1:** {proto_existente.get('puente_pre', '---')}")
-            st.caption("En la siguiente fase tendrás que usar este protocolo para producir y analizar datos.")
+    if not pre or not proto:
+        st.warning("Debes sellar el diseño observacional inicial en la Semana 1 antes de registrar el informe de observación.")
+        return
 
-        else:
-            sugerencia_instrumento = {
-                "Pausas y silencios": "Grabación de Audio (Voz)",
-                "Entonación": "Grabación de Audio (Voz)",
-                "Gestos y mirada": "Grabación de Video (Gestos + Voz)",
-                "Turnos de habla": "Grabación de Video (Gestos + Voz)",
-                "Aún no lo sé": "Diario de campo / Notas en vivo",
-            }.get(pre.get("mediacion", "Aún no lo sé"), "Diario de campo / Notas en vivo")
+    st.markdown("### 🧾 Diseño recuperado de la Semana 1")
+    st.write(f"**Fenómeno:** {pre.get('fenomeno', '---')}")
+    st.write(f"**{pre.get('tipo_compromiso', 'Hipótesis')}:** {pre.get('hipotesis', '---')}")
+    st.write(f"**Caso previsto:** {proto.get('caso_unico', '---')} ({proto.get('edad_caso', '---')})")
+    st.write(f"**Contexto:** {proto.get('contexto_caso', '---')}")
+    st.write(f"**Instrumento:** {proto.get('instrumento', '---')}")
+    st.write(f"**Marco de referencia:** {proto.get('baremos', '---')}")
+    st.write(f"**Categorías iniciales:** {proto.get('categorias', '---')}")
+    st.caption("Este diseño orienta el informe, pero puede ajustarse si el trabajo de campo mostró algo relevante.")
 
-            with st.form("form_s2_protocolo"):
-                st.subheader("1. Caso único y contexto real")
-                col1, col2 = st.columns(2)
-                with col1:
-                    c_u = st.text_input("Seudónimo o iniciales del niño/a")
-                with col2:
-                    e_c = st.text_input("Edad exacta (años y meses)")
-                ctx = st.text_area("Contexto exacto de observación")
+    if informe_existente:
+        st.success("✅ Ya tienes un informe de observación registrado.")
+        st.markdown("### 📊 Síntesis registrada")
+        st.write(f"**Informe completo:** {informe_existente.get('link', '---')}")
+        st.write(f"**Evidencia empírica:** {informe_existente.get('evidencia', '---')[:400]}...")
+        st.write(f"**Perfil lingüístico:** {informe_existente.get('perfil', '---')[:400]}...")
+        st.write(f"**Decisión frente a hipótesis/pregunta:** {informe_existente.get('decision', '---')}")
+        st.write(f"**Conclusiones:** {informe_existente.get('conclusiones', '---')[:400]}...")
+        st.caption("Este registro será retomado en la Semana 3 para el diseño del juguete de estimulación lingüística.")
 
-                st.subheader("2. Traducción del pre-registro en método")
-                puente_pre = st.text_area(
-                    "Explica en una frase cómo este protocolo responde al fenómeno y a la hipótesis que sellaste en la Fase 1."
-                )
-                obj = st.text_input("Objetivo de la observación")
+        with st.expander("🕵️ Expediente 09: El silencio de los datos"):
+            st.markdown(
+                """
+                **Has entregado tu primer reporte empírico.**
 
-                col3, col4 = st.columns(2)
-                with col3:
-                    instrumento = st.selectbox(
-                        "Instrumento de mediación y registro",
-                        ["Grabación de Audio (Voz)", "Grabación de Video (Gestos + Voz)", "Diario de campo / Notas en vivo"],
-                        index=["Grabación de Audio (Voz)", "Grabación de Video (Gestos + Voz)", "Diario de campo / Notas en vivo"].index(sugerencia_instrumento),
+                Seguramente notaste que el niño no produjo todo lo que esperabas. Describir el habla infantil implica reflexionar sobre las formas presentes, pero también sobre las formas ausentes.
+
+                ¿Cuántos datos son suficientes para aseverar que un niño no ha adquirido una forma? A veces, una palabra o sonido simplemente no aparece porque el contexto comunicativo de esa tarde no lo requirió.
+                """
+            )
+
+            resolver_expediente_opcion_unica(
+                expediente_id="s2_silencio_datos",
+                pregunta="Si en tu registro de campo de 30 minutos el niño observado no produjo ninguna frase de dos palabras, la conclusión analítica más prudente es:",
+                opciones=[
+                    "Selecciona...",
+                    "Dictaminar que el niño tiene un retraso en el desarrollo morfosintáctico.",
+                    "Reconocer que la ausencia del dato en esa muestra no demuestra la falta de competencia; puede ser una forma emergente o que el contexto no lo elicitó.",
+                ],
+                respuesta_correcta="Reconocer que la ausencia del dato en esa muestra no demuestra la falta de competencia; puede ser una forma emergente o que el contexto no lo elicitó.",
+                feedback_correcto="Correcto. La ausencia de una forma en una muestra limitada no permite concluir déficit.",
+                feedback_incorrecto="Respuesta registrada. Revisa la cautela metodológica: que algo no aparezca en una muestra breve no significa que el niño no pueda producirlo.",
+                xp_epistemico=15,
+            )
+
+        return
+    
+    st.divider()
+    st.markdown("## 📎 Informe completo")
+    st.caption(
+        "El informe puede estar en Word, PDF, Drive, Canva u otro formato. La app no reemplaza el documento: registra su lectura metodológica."
+    )
+
+    with st.form("f2_informe_observacion"):
+        link_informe = st.text_input(
+            "Enlace al informe completo o carpeta de evidencias"
+        )
+
+        st.markdown("### 1. Evidencia empírica")
+        evidencia = st.text_area(
+            "Escribe 2–3 ejemplos reales del habla, gestos, interacción o conducta comunicativa observada. Procura conservar la forma en que apareció el dato.",
+            placeholder="Ejemplo: dice 'guau guau' para referirse a un caballo; señala el objeto y mira al adulto; dice 'ota auto' al pedir otro carro..."
+        )
+
+        st.markdown("### 2. Organización según el protocolo")
+        categorias_uso = st.text_area(
+            "¿Cómo organizaste esos datos según las categorías iniciales de la Semana 1? También puedes explicar si alguna categoría tuvo que ajustarse."
+        )
+
+        st.markdown("### 3. Consideración sobre el desarrollo")
+        consideracion_desarrollo = st.text_area(
+            "Interpreta lo observado a la luz del desarrollo del lenguaje. No diagnostiques: describe recursos, estrategias, trayectorias esperables o aspectos que requieren cautela."
+        )
+
+        st.markdown("### 4. Perfil lingüístico observado")
+        perfil = st.text_area(
+            "Describe el perfil comunicativo y lingüístico del niño a partir de los datos: recursos disponibles, formas de interacción, producción, comprensión, gestos, juego o uso funcional del lenguaje."
+        )
+
+        decision = st.selectbox(
+            "5. ¿Qué ocurrió con tu hipótesis o pregunta inicial?",
+            ["Selecciona...", "Se confirma", "Se ajusta parcialmente", "No se sostiene con los datos", "La observación abrió una pregunta nueva"],
+        )
+
+        justificacion = st.text_area(
+            "6. Justifica tu decisión usando datos concretos del informe."
+        )
+
+        cautela = st.text_area(
+            "7. ¿Qué evitaste sobrerinterpretar o patologizar en tu análisis?"
+        )
+
+        conclusiones = st.text_area(
+            "8. Conclusiones del informe de observación. Sintetiza qué aprendiste del caso y qué implicaciones tiene para comprender el desarrollo del lenguaje."
+        )
+
+        evidencia_link = st.text_input(
+            "Enlace opcional a evidencias complementarias: fotos, capturas, tablas, audios o videos"
+        )
+
+        enviar_informe = st.form_submit_button("Sellar informe de observación")
+
+        if enviar_informe:
+            problemas = []
+
+            if not link_informe.strip():
+                problemas.append("Debes adjuntar el informe completo o un enlace a la carpeta de evidencias.")
+            if len(evidencia.strip()) < 50:
+                problemas.append("Incluye ejemplos empíricos más claros y concretos.")
+            if len(categorias_uso.strip()) < 60:
+                problemas.append("Debes explicar cómo organizaste los datos según tus categorías.")
+            if len(consideracion_desarrollo.strip()) < 80:
+                problemas.append("La consideración sobre el desarrollo necesita mayor elaboración.")
+            if len(perfil.strip()) < 100:
+                problemas.append("El perfil lingüístico observado todavía es demasiado breve.")
+            if decision == "Selecciona...":
+                problemas.append("Debes tomar una decisión frente a tu hipótesis o pregunta inicial.")
+            if len(justificacion.strip()) < 80:
+                problemas.append("La justificación debe apoyarse mejor en los datos observados.")
+            if len(cautela.strip()) < 50:
+                problemas.append("Debes explicitar mejor la cautela interpretativa o no patologizante.")
+            if len(conclusiones.strip()) < 80:
+                problemas.append("Las conclusiones necesitan mayor desarrollo.")
+
+            categorias_previas = proto.get("categorias", "").lower().strip()
+            if categorias_previas:
+                primeras_palabras = [
+                    p for p in categorias_previas.replace("-", " ").replace(":", " ").split()
+                    if len(p) > 5
+                ][:8]
+                texto_categoria = (categorias_uso + " " + perfil + " " + justificacion).lower()
+                if primeras_palabras and not any(p.lower() in texto_categoria for p in primeras_palabras):
+                    st.warning(
+                        "La relación con las categorías iniciales no es evidente. Puedes continuar, pero revisa si debes explicitar mejor el puente con la Semana 1."
                     )
-                with col4:
-                    baremos = st.selectbox(
-                        "Marco de referencia del desarrollo",
-                        ["Guía UNICEF (Vigilancia e Hitos)", "Manual PUC (Clínico-Funcional)", "Ambos"],
-                    )
 
-                st.caption(f"Sugerencia recuperada de Fase 1 según tu mediación prioritaria: **{sugerencia_instrumento}**")
+            if problemas:
+                for p in problemas:
+                    st.error(p)
+            else:
+                st.session_state.grupo_actual["entregas"]["f2_informe"] = {
+                    "link": link_informe.strip(),
+                    "evidencia": evidencia.strip(),
+                    "categorias": categorias_uso.strip(),
+                    "consideracion_desarrollo": consideracion_desarrollo.strip(),
+                    "perfil": perfil.strip(),
+                    "decision": decision,
+                    "justificacion": justificacion.strip(),
+                    "cautela": cautela.strip(),
+                    "conclusiones": conclusiones.strip(),
+                    "evidencia_link": evidencia_link.strip(),
+                }
 
-                cat = st.text_area(
-                    "Categorías y criterios de observación (¿qué contará exactamente como una ocurrencia en tus datos?)"
-                )
-                proc = st.text_area(
-                    "Procedimiento paso a paso (ej. preparar registro, iniciar interacción, registrar, transcribir, organizar ocurrencias)"
-                )
+                ganar_xp(mision=200, epistemico=25)
+                save_group_data(st.session_state.grupo_actual)
 
-                enviar_proto = st.form_submit_button("Guardar y sellar protocolo operativo")
-
-                if enviar_proto:
-                    problemas = []
-
-                    if not c_u.strip():
-                        problemas.append("Debes identificar un caso único.")
-                    if not e_c.strip():
-                        problemas.append("Debes registrar la edad exacta del caso.")
-                    if not ctx.strip():
-                        problemas.append("Debes describir el contexto real de observación.")
-                    if len(puente_pre.strip()) < 30:
-                        problemas.append("Debes explicar mejor cómo este protocolo se deriva del pre-registro.")
-                    if len(obj.strip()) < 15:
-                        problemas.append("El objetivo de observación todavía es demasiado breve.")
-                    if len(cat.strip()) < 30:
-                        problemas.append("Las categorías deben estar mejor definidas.")
-                    if len(proc.strip()) < 30:
-                        problemas.append("El procedimiento debe ser más claro y replicable.")
-
-                    fenomeno_pre = pre.get("fenomeno", "").lower().strip()
-                    if fenomeno_pre and fenomeno_pre not in (puente_pre.lower() + " " + cat.lower()):
-                        problemas.append("No se ve con claridad cómo tus categorías responden al fenómeno definido en Fase 1.")
-
-                    if pre.get("mediacion") == "Gestos y mirada" and instrumento == "Grabación de Audio (Voz)":
-                        problemas.append("Elegiste priorizar gestos y mirada en Fase 1, pero el instrumento actual no los captura bien.")
-
-                    if pre.get("mediacion") == "Turnos de habla" and instrumento == "Diario de campo / Notas en vivo":
-                        problemas.append("Si quieres analizar turnos de habla, el diario de campo puede ser insuficiente sin apoyo de audio o video.")
-
-                    if problemas:
-                        for p in problemas:
-                            st.error(p)
-                    else:
-                        st.session_state.grupo_actual["entregas"]["f2_protocolo"] = {
-                            "caso_unico": c_u.strip(),
-                            "edad_caso": e_c.strip(),
-                            "contexto_caso": ctx.strip(),
-                            "puente_pre": puente_pre.strip(),
-                            "objetivo": obj.strip(),
-                            "instrumento": instrumento,
-                            "baremos": baremos,
-                            "categorias": cat.strip(),
-                            "procedimiento": proc.strip(),
-                        }
-                        ganar_xp(mision=200)
-                        st.session_state.grupo_actual["perfil_grupal"]["identidad_puntos"]["desarrollo"] += 10
-                        save_group_data(st.session_state.grupo_actual)
-                        st.success("✅ Protocolo operativo sellado. En la siguiente fase tendrás que contrastar este diseño con datos reales.")
-                        st.balloons()
-                        st.rerun()
-
+                st.success("✅ Informe de observación sellado. Has convertido el trabajo de campo en análisis psicolingüístico.")
+                st.balloons()
+                st.rerun()
 
 def render_semana_3():
-    st.title("🧩 Semana 3: El Código - Caso Único y La Gran Síntesis")
+    st.title("🧸 Semana 3: Aplicación del análisis – Diseño de un juguete")
     st.info(
-        "En esta fase debes contrastar tu diseño con datos reales y, a partir de ese análisis, traducir tus hallazgos en una propuesta aplicada."
+        "En esta fase traduces los hallazgos del informe de observación en una propuesta aplicada: un juguete de estimulación lingüística fundamentado en el caso."
     )
 
     st.markdown("## 🧠 Expedientes de Caso")
 
-    with st.expander("🪁 Expediente 05: El juego como motor cognitivo y la ZDP"):
+    with st.expander("🪁 Expediente 10: El juego como motor cognitivo y la ZDP"):
         st.markdown(
             """
             **El juguete como herramienta cultural.**
@@ -592,18 +872,22 @@ def render_semana_3():
             """
         )
 
-        zdp_q = st.radio(
-            "Si diseñas un juguete que el niño no puede resolver por sí solo, pero sí con apoyo o con la estructura del objeto, estás operando en:",
-            ["Selecciona...", "La etapa preoperacional estricta", "La Zona de Desarrollo Próximo (ZDP)"],
-            key="s3_zdp",
+        resolver_expediente_opcion_unica(
+            expediente_id="s3_zdp",
+            pregunta="Si diseñas un juguete que el niño no puede resolver por sí solo, pero sí con apoyo o con la estructura del objeto, estás operando en:",
+            opciones=[
+                "Selecciona...",
+                "La etapa preoperacional estricta",
+                "La Zona de Desarrollo Próximo (ZDP)",
+                "El condicionamiento operante mediante refuerzos positivos",
+            ],
+            respuesta_correcta="La Zona de Desarrollo Próximo (ZDP)",
+            feedback_correcto="Correcto. Aquí el objeto no solo entretiene: estructura una posibilidad de desarrollo.",
+            feedback_incorrecto="Respuesta registrada. Revisa la ZDP: se refiere a aquello que el niño puede lograr con apoyo, mediación o andamiaje.",
+            xp_epistemico=15,
         )
-        if zdp_q == "La Zona de Desarrollo Próximo (ZDP)" and "s3_zdp" not in st.session_state.grupo_actual["casos_resueltos"]:
-            st.success("Correcto. Aquí el objeto no solo entretiene: estructura una posibilidad de desarrollo.")
-            ganar_xp(epistemico=15)
-            st.session_state.grupo_actual["casos_resueltos"].append("s3_zdp")
-            save_group_data(st.session_state.grupo_actual)
 
-    with st.expander("♻️ Expediente 06: Diseño Adaptativo, Identidad y Economía Circular"):
+    with st.expander("♻️ Expediente 11: Diseño Adaptativo, Identidad y Economía Circular"):
         st.markdown(
             """
             **Sustentabilidad y pertinencia cultural.**
@@ -611,215 +895,317 @@ def render_semana_3():
             """
         )
 
-        eco_q = st.radio(
-            "¿Por qué puede ser preferible usar recursos de la región en lugar de materiales genéricos para tu prototipo?",
-            ["Selecciona...", "Para reducir tiempo de fabricación y costos logísticos", "Para dotar al objeto de pertinencia cultural y aprovechar materiales disponibles"],
-            key="s3_eco",
+        resolver_expediente_opcion_unica(
+            expediente_id="s3_eco",
+            pregunta="¿Por qué puede ser preferible usar recursos de la región en lugar de materiales genéricos para tu prototipo?",
+            opciones=[
+                "Selecciona...",
+                "Para estandarizar el producto y asegurar que cumpla con normas internacionales de exportación masiva",
+                "Para reducir tiempo de fabricación y costos logísticos",
+                "Para dotar al objeto de pertinencia cultural y aprovechar materiales disponibles",
+            ],
+            respuesta_correcta="Para dotar al objeto de pertinencia cultural y aprovechar materiales disponibles",
+            feedback_correcto="Correcto. El diseño también comunica contexto e identidad.",
+            feedback_incorrecto="Respuesta registrada. Revisa la idea de pertinencia cultural: el objeto no solo funciona, también dialoga con el contexto del niño.",
+            xp_epistemico=15,
         )
-        if eco_q == "Para dotar al objeto de pertinencia cultural y aprovechar materiales disponibles" and "s3_eco" not in st.session_state.grupo_actual["casos_resueltos"]:
-            st.success("Correcto. El diseño también comunica contexto e identidad.")
-            ganar_xp(epistemico=15)
-            st.session_state.grupo_actual["casos_resueltos"].append("s3_eco")
-            save_group_data(st.session_state.grupo_actual)
 
-    st.markdown("## 🔬 Laboratorio de Síntesis")
+    with st.expander("🧩 Expediente 12: El juguete como ancla para la Atención Conjunta"):
+        st.markdown(
+            """
+            **El juguete no enseña por sí solo; la interacción sí.**
+
+            Según E. Clark (2009), la adquisición del lenguaje requiere interacción. Para que la comunicación sea efectiva, el adulto y el niño deben compartir un foco de atención conjunta.
+
+            En estas interacciones tempranas, los adultos suelen **anclar** sus contribuciones a objetos físicamente presentes en el entorno.
+            """
+        )
+
+        resolver_expediente_opcion_unica(
+            expediente_id="s3_atencion_conjunta",
+            pregunta="Si diseñas un juguete asumiendo que el niño lo usará completamente solo y aislado, ¿qué mecanismo esencial para la adquisición del lenguaje estás omitiendo?",
+            opciones=[
+                "Selecciona...",
+                "La modificación de la estructura sintáctica.",
+                "La atención conjunta triádica y la co-presencia física.",
+                "El desarrollo fonológico autónomo.",
+            ],
+            respuesta_correcta="La atención conjunta triádica y la co-presencia física.",
+            feedback_correcto="Correcto. El juguete funciona como mediador dentro de una interacción compartida.",
+            feedback_incorrecto="Respuesta registrada. Revisa la atención conjunta: el aprendizaje lingüístico temprano ocurre en interacción con otros y con objetos compartidos.",
+            xp_epistemico=15,
+        )
+
+    st.markdown("## 🎯 Misión 3: Diseño de un juguete de estimulación lingüística y cognitiva")
+
     pre = st.session_state.grupo_actual["entregas"].get("f1_pre_registro")
     proto = st.session_state.grupo_actual["entregas"].get("f2_protocolo")
-    informe_existente = st.session_state.grupo_actual["entregas"].get("f3_informe")
+    informe = st.session_state.grupo_actual["entregas"].get("f2_informe")
     juguete_existente = st.session_state.grupo_actual["entregas"].get("f3_juguete")
 
-    if not proto or not pre:
-        st.warning("Debes tener completadas las fases anteriores para acceder a esta etapa.")
-    else:
-        st.markdown("### 🧾 Memoria del proceso")
-        st.write(f"**Fenómeno inicial:** {pre.get('fenomeno', '---')}")
-        st.write(f"**{pre.get('tipo_compromiso', 'Hipótesis')}:** {pre.get('hipotesis', '---')}")
-        st.write(f"**Caso observado:** {proto.get('caso_unico', '---')} ({proto.get('edad_caso', '---')})")
-        st.write(f"**Categorías previstas:** {proto.get('categorias', '---')}")
-        st.caption("Ahora debes responder con datos a lo que planteaste en las fases anteriores.")
+    if not pre or not proto:
+        st.warning("Debes completar primero el diseño observacional inicial de la Semana 1.")
+        return
 
-        st.markdown("### 📊 Producto 1: Informe de observación (20%)")
-        st.caption("Aquí no basta describir: debes contrastar lo observado con tu compromiso inicial.")
+    if not informe:
+        st.warning("Debes sellar primero el informe de observación en la Semana 2 para habilitar el diseño del juguete.")
+        return
 
-        if informe_existente:
-            st.success("✅ Ya tienes un informe de observación sellado.")
-            st.write(f"**Decisión frente a la hipótesis:** {informe_existente.get('decision_hipotesis', '---')}")
-            st.write(f"**Perfil observado:** {informe_existente.get('perfil', '---')[:300]}...")
-            st.write(f"**Contraste empírico:** {informe_existente.get('contraste', '---')[:300]}...")
-        else:
-            with st.form("f3_informe"):
-                perfil = st.text_area(
-                    "1. Sistematización del perfil lingüístico observado (describe ocurrencias reales y organizadas según tus categorías)"
+    st.markdown("### 🧾 Memoria del proceso")
+    st.write(f"**Fenómeno inicial:** {pre.get('fenomeno', '---')}")
+    st.write(f"**{pre.get('tipo_compromiso', 'Hipótesis')}:** {pre.get('hipotesis', '---')}")
+    st.write(f"**Caso observado:** {proto.get('caso_unico', '---')} ({proto.get('edad_caso', '---')})")
+    st.write(f"**Categorías iniciales:** {proto.get('categorias', '---')}")
+
+    st.markdown("### 📊 Hallazgos recuperados del informe")
+    st.write(f"**Decisión frente a hipótesis/pregunta:** {informe.get('decision', '---')}")
+    st.write(f"**Perfil lingüístico observado:** {informe.get('perfil', '---')[:500]}...")
+    st.write(f"**Consideración sobre el desarrollo:** {informe.get('consideracion_desarrollo', '---')[:500]}...")
+    st.write(f"**Conclusiones:** {informe.get('conclusiones', '---')[:500]}...")
+    st.caption("El juguete debe derivarse de estos hallazgos. No es una idea libre: es una respuesta aplicada al caso observado.")
+
+    st.divider()
+    st.markdown("### 🧸 Producto: Juguete de estimulación lingüística (15%)")
+
+    if juguete_existente:
+        st.success("✅ Ya tienes un juguete adaptativo registrado.")
+        st.write(f"**Nombre:** {juguete_existente.get('nombre', '---')}")
+        st.write(f"**Rasgo observado que lo inspira:** {juguete_existente.get('rasgo_inspirador', '---')}")
+        st.write(f"**Justificación de caso:** {juguete_existente.get('just_caso', '---')[:300]}...")
+        st.write(f"**Justificación pedagógica:** {juguete_existente.get('just_pedag', '---')[:300]}...")
+        st.write(f"**Enlace:** {juguete_existente.get('link', '---')}")
+
+        with st.expander("🚀 Expediente 13: El límite del diseño y la agencia infantil"):
+            st.markdown(
+                """
+                **¡Diseño completado!**
+
+                Has traducido tus hallazgos clínicos en un juguete de estimulación fundamentado en la teoría. Sin embargo, el desarrollo cognitivo nos advierte algo crucial: en el juego, los niños tienen agencia.
+
+                Un niño puede tomar tu sofisticado juguete, diseñado meticulosamente para estimular relaciones semánticas espaciales, e ignorar su propósito para usarlo como un sombrero o un teléfono.
+
+                **El diseño del adulto propone, pero la mente infantil dispone.**
+                """
+            )
+
+            resolver_expediente_opcion_unica(
+                expediente_id="s3_agencia_infantil",
+                pregunta="Si al entregarle tu juguete al niño notas que ignora por completo las reglas lingüísticas que diseñaste y comienza a usar el objeto para una representación simbólica totalmente diferente, tu postura reflexiva como investigador debe ser:",
+                opciones=[
+                    "Selecciona...",
+                    "Interrumpir el juego libre para enseñarle la forma \"correcta\" de usar el juguete, forzando la actividad para que tu diseño no fracase.",
+                    "Valorar y registrar este uso divergente como un dato riquísimo de su capacidad de sustitución simbólica, respetando su agencia sin patologizar el hecho de que no siga reglas.",
+                    "Asumir que el juguete estuvo mal diseñado desde el principio y que el niño presenta un déficit en el seguimiento de instrucciones.",
+                ],
+                respuesta_correcta="Valorar y registrar este uso divergente como un dato riquísimo de su capacidad de sustitución simbólica, respetando su agencia sin patologizar el hecho de que no siga reglas.",
+                feedback_correcto="Correcto. El uso divergente también es un dato sobre agencia, juego simbólico y desarrollo cognitivo.",
+                feedback_incorrecto="Respuesta registrada. Revisa la idea de agencia infantil: el niño no solo ejecuta instrucciones adultas; también transforma el objeto mediante el juego simbólico.",
+                xp_epistemico=15,
+            )
+
+        return
+    
+    with st.form("f3_juguete"):
+        nombre_j = st.text_input("Nombre del juguete")
+        rasgo_inspirador = st.text_input(
+            "¿Qué rasgo, recurso o patrón observado en el niño inspiró directamente este diseño?"
+        )
+
+        col1, col2 = st.columns(2)
+        with col1:
+            just_caso = st.text_area(
+                "Justificación de caso: ¿cómo responde este juguete al perfil observado?"
+            )
+            just_pedag = st.text_area(
+                "Justificación pedagógica: ¿cómo opera en la ZDP o favorece reorganización del lenguaje?"
+            )
+        with col2:
+            diseno_ergo = st.text_area(
+                "Diseño y ergonomía: seguridad, uso, adecuación a la edad y etapa de desarrollo"
+            )
+            sustentabilidad = st.text_area(
+                "Materiales, contexto y/o pertinencia cultural"
+            )
+
+        link_j = st.text_input("Enlace a ficha visual, boceto o evidencia del prototipo (Drive/Canva/etc.)")
+
+        enviar_juguete = st.form_submit_button("Entregar diseño de juguete")
+
+        if enviar_juguete:
+            problemas = []
+
+            if not nombre_j.strip():
+                problemas.append("Debes nombrar el juguete.")
+            if not rasgo_inspirador.strip():
+                problemas.append("Debes indicar qué hallazgo del informe inspiró el diseño.")
+            if len(just_caso.strip()) < 80:
+                problemas.append("La justificación de caso necesita mayor desarrollo.")
+            if len(just_pedag.strip()) < 60:
+                problemas.append("Debes fundamentar mejor la dimensión pedagógica.")
+            if len(diseno_ergo.strip()) < 60:
+                problemas.append("Debes describir mejor el diseño, la seguridad y la adecuación a la etapa.")
+            if not link_j.strip():
+                problemas.append("Debes adjuntar un enlace a la evidencia visual del diseño.")
+
+            perfil_obs = (
+                informe.get("perfil", "") + " " +
+                informe.get("evidencia", "") + " " +
+                informe.get("consideracion_desarrollo", "") + " " +
+                informe.get("conclusiones", "")
+            ).lower()
+
+            palabras_clave = [
+                p for p in rasgo_inspirador.lower().replace(",", " ").replace(".", " ").split()
+                if len(p) > 4
+            ]
+
+            if palabras_clave and not any(p in perfil_obs for p in palabras_clave):
+                st.warning(
+                    "La relación entre el rasgo inspirador y el informe no es evidente. Puedes continuar, pero conviene explicitar mejor ese vínculo en la justificación de caso."
                 )
-                decision_hipotesis = st.selectbox(
-                    "2. ¿Qué ocurrió con tu hipótesis o pregunta inicial?",
-                    ["Selecciona...", "Se confirma", "Se ajusta parcialmente", "No se sostiene con los datos"],
-                )
-                contraste = st.text_area(
-                    "3. Contraste empírico: explica tu decisión basándote en los datos recogidos"
-                )
-                sesgo = st.text_area(
-                    "4. ¿Qué riesgo de sesgo o lectura patologizante tuviste que evitar durante el análisis?"
-                )
 
-                enviar_informe = st.form_submit_button("Sellar y entregar informe de caso")
+            if problemas:
+                for p in problemas:
+                    st.error(p)
+            else:
+                st.session_state.grupo_actual["entregas"]["f3_juguete"] = {
+                    "nombre": nombre_j.strip(),
+                    "rasgo_inspirador": rasgo_inspirador.strip(),
+                    "just_caso": just_caso.strip(),
+                    "just_pedag": just_pedag.strip(),
+                    "diseno": diseno_ergo.strip(),
+                    "sustentabilidad": sustentabilidad.strip(),
+                    "link": link_j.strip(),
+                }
 
-                if enviar_informe:
-                    problemas = []
+                ganar_xp(mision=150, epistemico=25)
+                st.session_state.grupo_actual["perfil_grupal"]["identidad_puntos"]["aplicada"] += 15
+                save_group_data(st.session_state.grupo_actual)
 
-                    if len(perfil.strip()) < 100:
-                        problemas.append("La descripción del perfil aún es demasiado breve.")
-                    if decision_hipotesis == "Selecciona...":
-                        problemas.append("Debes tomar una decisión explícita frente a tu hipótesis inicial.")
-                    if len(contraste.strip()) < 100:
-                        problemas.append("El contraste con la hipótesis necesita más desarrollo.")
-                    if len(sesgo.strip()) < 40:
-                        problemas.append("Debes explicitar mejor el sesgo que evitaste o la cautela interpretativa que adoptaste.")
-
-                    categorias_previas = proto.get("categorias", "").lower().strip()
-                    if categorias_previas and not any(pal in perfil.lower() for pal in categorias_previas.split()[:3]):
-                        problemas.append("No se ve con claridad la relación entre tus categorías de observación y la descripción del perfil.")
-
-                    if problemas:
-                        for p in problemas:
-                            st.error(p)
-                    else:
-                        st.session_state.grupo_actual["entregas"]["f3_informe"] = {
-                            "perfil": perfil.strip(),
-                            "decision_hipotesis": decision_hipotesis,
-                            "contraste": contraste.strip(),
-                            "sesgo": sesgo.strip(),
-                        }
-                        ganar_xp(mision=200, epistemico=20)
-                        save_group_data(st.session_state.grupo_actual)
-                        st.success("✅ Informe sellado. Ahora puedes traducir esos hallazgos en una propuesta aplicada.")
-                        st.balloons()
-                        st.rerun()
-
-        st.markdown("### 🧸 Producto 2: Juguete adaptativo (15%)")
-        st.caption("El juguete debe derivarse del perfil observado. No es una idea libre: es una respuesta aplicada a tus hallazgos.")
-
-        if not informe_existente:
-            st.warning("Debes sellar primero el informe de observación para habilitar el diseño del juguete.")
-        elif juguete_existente:
-            st.success("✅ Ya tienes un juguete adaptativo registrado.")
-            st.write(f"**Nombre:** {juguete_existente.get('nombre', '---')}")
-            st.write(f"**Rasgo observado que lo inspira:** {juguete_existente.get('rasgo_inspirador', '---')}")
-            st.write(f"**Justificación de caso:** {juguete_existente.get('just_caso', '---')[:300]}...")
-        else:
-            with st.form("f3_juguete"):
-                nombre_j = st.text_input("Nombre del juguete")
-                rasgo_inspirador = st.text_input(
-                    "¿Qué rasgo o patrón observado en el niño inspiró directamente este diseño?"
-                )
-
-                col1, col2 = st.columns(2)
-                with col1:
-                    just_caso = st.text_area(
-                        "Justificación de caso: ¿cómo responde este juguete al perfil observado?"
-                    )
-                    just_pedag = st.text_area(
-                        "Justificación pedagógica: ¿cómo opera en la ZDP o favorece reorganización del lenguaje?"
-                    )
-                with col2:
-                    diseno_ergo = st.text_area("Diseño y ergonomía: seguridad, uso, adecuación a la etapa")
-                    sustentabilidad = st.text_area("Materiales, contexto y/o pertinencia cultural")
-
-                link_j = st.text_input("Enlace a ficha visual o boceto (Drive/Canva)")
-
-                enviar_juguete = st.form_submit_button("Entregar diseño de juguete")
-
-                if enviar_juguete:
-                    problemas = []
-
-                    if not nombre_j.strip():
-                        problemas.append("Debes nombrar el juguete.")
-                    if not rasgo_inspirador.strip():
-                        problemas.append("Debes indicar qué hallazgo del informe inspiró el diseño.")
-                    if len(just_caso.strip()) < 60:
-                        problemas.append("La justificación de caso necesita mayor desarrollo.")
-                    if len(just_pedag.strip()) < 40:
-                        problemas.append("Debes fundamentar mejor la dimensión pedagógica.")
-                    if not link_j.strip():
-                        problemas.append("Debes adjuntar un enlace a la evidencia visual del diseño.")
-
-                    perfil_obs = (st.session_state.grupo_actual["entregas"].get("f3_informe") or {}).get("perfil", "").lower()
-                    palabras_clave = rasgo_inspirador.lower().split()
-                    if palabras_clave and not any(p in perfil_obs for p in palabras_clave if len(p) > 4):
-                        st.warning("La relación con el informe no es evidente. Revísala.")
-
-                    if problemas:
-                        for p in problemas:
-                            st.error(p)
-                    else:
-                        st.session_state.grupo_actual["entregas"]["f3_juguete"] = {
-                            "nombre": nombre_j.strip(),
-                            "rasgo_inspirador": rasgo_inspirador.strip(),
-                            "just_caso": just_caso.strip(),
-                            "just_pedag": just_pedag.strip(),
-                            "diseno": diseno_ergo.strip(),
-                            "sustentabilidad": sustentabilidad.strip(),
-                            "link": link_j.strip(),
-                        }
-                        ganar_xp(mision=150, epistemico=25)
-                        save_group_data(st.session_state.grupo_actual)
-                        st.success("✅ Juguete registrado. Has traducido un hallazgo observacional en una propuesta aplicada.")
-                        st.balloons()
-                        st.rerun()
-
-
+                st.success("✅ Juguete registrado. Has traducido un hallazgo observacional en una propuesta aplicada.")
+                st.balloons()
+                st.rerun()
+                
 def render_semana_4():
-    st.title("🧩 Semana 4: El Sentido - Modelos Cognitivos y Diseño Experimental")
+    st.title("🧩 Semana 4: Modelos Cognitivos y Diseño Experimental")
     st.info("En esta fase dejas la observación naturalista y pasas a aislar procesos mentales en condiciones controladas.")
 
     st.markdown("## 🧠 Expedientes de Caso")
 
-    with st.expander("🔄 Expediente 07: Producción vs. Comprensión"):
+    with st.expander("🔄 Expediente 14: Producción vs. Comprensión"):
         st.markdown(
             """
             * **Comprensión:** Del estímulo al significado.
             * **Producción:** De la intención al habla.
             """
         )
-        flujo = st.radio(
-            "Si mides el tiempo de reconocimiento de una palabra, estás estudiando:",
-            ["Selecciona...", "Producción", "Comprensión"],
-            key="s4_comp",
+        resolver_expediente_opcion_unica(
+            expediente_id="s4_comp",
+            pregunta="Si mides el tiempo de reconocimiento de una palabra, estás estudiando:",
+            opciones=[
+                "Selecciona...",
+                "Producción",
+                "Adquisición",
+                "Comprensión",
+            ],
+            respuesta_correcta="Comprensión",
+            feedback_correcto="Correcto.",
+            feedback_incorrecto="Respuesta registrada. Revisa la diferencia: la comprensión va del estímulo lingüístico al significado; la producción va de la intención al habla.",
+            xp_epistemico=10,
         )
-        if flujo == "Comprensión" and "s4_comp" not in st.session_state.grupo_actual["casos_resueltos"]:
-            st.success("Correcto.")
-            ganar_xp(epistemico=10)
-            st.session_state.grupo_actual["casos_resueltos"].append("s4_comp")
-            save_group_data(st.session_state.grupo_actual)
 
-    with st.expander("🏛️ Expediente 08: Modelos de procesamiento"):
+    with st.expander("🏛️ Expediente 15: Modelos de procesamiento"):
         st.markdown(
             """
             * **Modular:** Serial, encapsulado.
             * **Interactivo:** Paralelo, con influencia mutua.
             """
         )
-        modelo = st.radio(
-            "Si el contexto ayuda a reconocer letras, apoyas un modelo:",
-            ["Selecciona...", "Modular/Autónomo", "Interactivo/Conexionista"],
-            key="s4_mod",
+        resolver_expediente_opcion_unica(
+            expediente_id="s4_mod",
+            pregunta="Si el contexto ayuda a reconocer letras, apoyas un modelo:",
+            opciones=[
+                "Selecciona...",
+                "Influencia mutua",
+                "Modular/Autónomo",
+                "Interactivo/Conexionista",
+            ],
+            respuesta_correcta="Interactivo/Conexionista",
+            feedback_correcto="Correcto.",
+            feedback_incorrecto="Respuesta registrada. Revisa los modelos interactivos: permiten influencia mutua entre niveles de procesamiento.",
+            xp_epistemico=15,
         )
-        if modelo == "Interactivo/Conexionista" and "s4_mod" not in st.session_state.grupo_actual["casos_resueltos"]:
-            st.success("Correcto.")
-            ganar_xp(epistemico=15)
-            st.session_state.grupo_actual["casos_resueltos"].append("s4_mod")
-            save_group_data(st.session_state.grupo_actual)
+
+    with st.expander("🛡️ Expediente 16: El Blindaje Experimental: Variables de Confusión"):
+        st.markdown(
+            """
+            **El control del caos.**
+
+            En un experimento verdadero debes garantizar que el cambio en la Variable Dependiente (VD) fue causado exclusivamente por tu Variable Independiente (VI). Cualquier otra circunstancia es ruido que amenaza tu validez interna y debe ser controlada.
+            """
+        )
+
+        resolver_expediente_opcion_unica(
+            expediente_id="s4_confusion",
+            pregunta="Si en tu experimento comparas el tiempo de reacción ante palabras frecuentes vs. poco frecuentes, pero resulta que todas las palabras frecuentes eran cortas y las poco frecuentes eran muy largas, la 'longitud de la palabra' se ha convertido en:",
+            opciones=[
+                "Selecciona...",
+                "Una variable de control aleatorizada con éxito.",
+                "Una segunda variable dependiente del experimento.",
+                "Una variable de confusión que arruina la validez interna.",
+            ],
+            respuesta_correcta="Una variable de confusión que arruina la validez interna.",
+            feedback_correcto="Correcto. Una variable que cambia junto con la VI amenaza la validez interna del experimento.",
+            feedback_incorrecto="Respuesta registrada. Revisa la variable de confusión: es una variable no controlada que covaría con la VI y amenaza la interpretación causal.",
+            xp_epistemico=15,
+        )
 
     st.divider()
-    st.markdown("## 🎯 Misión: Diseño Experimental (25%)")
+    st.markdown("## 🎯 Misión 4: Diseño Experimental (25%)")
 
     pre = st.session_state.grupo_actual["entregas"].get("f1_pre_registro")
     informe = st.session_state.grupo_actual["entregas"].get("f3_informe")
+    diseno_existente = st.session_state.grupo_actual["entregas"].get("f4_diseno_exp")
 
     if pre and informe:
         st.markdown("### 🧾 Memoria del proceso")
         st.write(f"**Fenómeno inicial:** {pre.get('fenomeno','---')}")
         st.write(f"**Decisión sobre hipótesis:** {informe.get('decision_hipotesis','---')}")
+
+    if diseno_existente:
+        st.success("✅ Ya tienes un diseño experimental registrado.")
+        st.write(f"**Tipo:** {diseno_existente.get('tipo', '---')}")
+        st.write(f"**Hipótesis:** {diseno_existente.get('hipotesis', '---')}")
+        st.write(f"**VI:** {diseno_existente.get('vi', '---')}")
+        st.write(f"**VD:** {diseno_existente.get('vd', '---')}")
+        st.write(f"**Variables de control:** {diseno_existente.get('control', '---')}")
+        st.write(f"**Ruido anticipado:** {diseno_existente.get('ruido', '---')}")
+
+        with st.expander("⚖️ Expediente 17: La amenaza de la Mortalidad Diferencial"):
+            st.markdown(
+                """
+                **¡Diseño sellado y blindado!**
+
+                Ahora debes salir a recolectar datos con al menos 10 informantes reales. Sin embargo, el trabajo con humanos es impredecible. ¿Qué pasa si algunos de tus informantes se aburren o frustran a la mitad de la prueba y la abandonan? En metodología, la pérdida de sujetos es peligrosa.
+                """
+            )
+
+            resolver_expediente_opcion_unica(
+                expediente_id="s4_confusion",
+                pregunta="Si en tu experimento comparas el tiempo de reacción ante palabras frecuentes vs. poco frecuentes, pero resulta que todas las palabras frecuentes eran cortas y las poco frecuentes eran muy largas, la 'longitud de la palabra' se ha convertido en:",
+                opciones=[
+                    "Selecciona...",
+                    "Una variable de control aleatorizada con éxito.",
+                    "Una segunda variable dependiente del experimento.",
+                    "Una variable de confusión que arruina la validez interna.",
+                ],
+                respuesta_correcta="Una variable de confusión que arruina la validez interna.",
+                feedback_correcto="Correcto. Una variable que cambia junto con la VI amenaza la validez interna del experimento.",
+                feedback_incorrecto="Respuesta registrada. Revisa la variable de confusión: es una variable no controlada que covaría con la VI y amenaza la interpretación causal.",
+                xp_epistemico=15,
+            )
+
+        return
 
     tipo_exp = st.radio(
         "Origen de tu diseño experimental:",
@@ -913,16 +1299,15 @@ def render_semana_4():
                 st.balloons()
                 st.rerun()
 
-
 def render_semana_5():
-    st.title("📊 Semana 5: La Síntesis - El Laboratorio Final")
+    st.title("📊 Semana 5: Informe de Experimento")
     st.info(
         "Has llegado a la cumbre de tu entrenamiento, Investigador Junior. Es hora de enfrentar los datos empíricos reales, gestionar el caos metodológico y defender tus hallazgos."
     )
 
     st.markdown("## 🧠 Expedientes de Caso")
 
-    with st.expander("⏱️ Expediente 10: ¿Procesos o Productos? (On-line vs. Off-line)"):
+    with st.expander("⏱️ Expediente 18: ¿Procesos o Productos? (On-line vs. Off-line)"):
         st.markdown(
             """
             **¿Cuándo medir la comprensión?**
@@ -931,17 +1316,22 @@ def render_semana_5():
             """
         )
 
-        tecnica = st.radio(
-            "Si tu objetivo es medir exactamente en qué milisegundo el cerebro del lector detecta una anomalía sintáctica al leer una oración, debes usar:",
-            ["Selecciona...", "Una técnica Off-line (Prueba de memoria al final del texto)", "Una técnica On-line (Registro de movimientos oculares o potenciales evocados)"],
+        resolver_expediente_opcion_unica(
+            expediente_id="s5_online",
+            pregunta="Si tu objetivo es medir exactamente en qué milisegundo el cerebro del lector detecta una anomalía sintáctica al leer una oración, debes usar:",
+            opciones=[
+                "Selecciona...",
+                "Una técnica Off-line (Prueba de memoria al final del texto)",
+                "Análisis proposicional",
+                "Una técnica On-line (Registro de movimientos oculares o potenciales evocados)",
+            ],
+            respuesta_correcta="Una técnica On-line (Registro de movimientos oculares o potenciales evocados)",
+            feedback_correcto="¡Exacto! Necesitas capturar el proceso mental en tiempo real.",
+            feedback_incorrecto="Respuesta registrada. Revisa la diferencia: las técnicas on-line capturan el procesamiento en tiempo real.",
+            xp_epistemico=15,
         )
-        if tecnica == "Una técnica On-line (Registro de movimientos oculares o potenciales evocados)" and "s5_online" not in st.session_state.grupo_actual["casos_resueltos"]:
-            st.success("¡Exacto! Necesitas capturar el proceso mental en tiempo real. +15 XP Epistémico.")
-            ganar_xp(epistemico=15)
-            st.session_state.grupo_actual["casos_resueltos"].append("s5_online")
-            save_group_data(st.session_state.grupo_actual)
 
-    with st.expander("🌪️ Expediente 11: El Ruido Experimental"):
+    with st.expander("🌪️ Expediente 19: El Ruido Experimental"):
         st.markdown(
             """
             **La incertidumbre en los datos empíricos:**
@@ -952,38 +1342,98 @@ def render_semana_5():
             """
         )
 
-        ruido_sel = st.radio(
-            "Si un participante tarda 4000 milisegundos en una tarea de decisión léxica donde el promedio es de 600 ms, la acción más ética metodológicamente es:",
-            ["Selecciona...", "Eliminar el dato en silencio para que la hipótesis cuadre perfecta", "Auditar el valor atípico (outlier), justificar estadísticamente su exclusión y reportarlo"],
+        resolver_expediente_opcion_unica(
+            expediente_id="s5_ruido",
+            pregunta="Si un participante tarda 4000 milisegundos en una tarea de decisión léxica donde el promedio es de 600 ms, la acción más ética metodológicamente es:",
+            opciones=[
+                "Selecciona...",
+                "Eliminar el dato en silencio para que la hipótesis cuadre perfecta",
+                "Modificar la hipótesis original a posteriori para que coincida con este dato atípico",
+                "Auditar el valor atípico (outlier), justificar estadísticamente su exclusión y reportarlo",
+            ],
+            respuesta_correcta="Auditar el valor atípico (outlier), justificar estadísticamente su exclusión y reportarlo",
+            feedback_correcto="Excelente criterio ético y metodológico. La ciencia exige transparencia.",
+            feedback_incorrecto="Respuesta registrada. Revisa el manejo de outliers: no se eliminan sin justificación ni se acomodan hipótesis.",
+            xp_epistemico=15,
         )
-        if ruido_sel == "Auditar el valor atípico (outlier), justificar estadísticamente su exclusión y reportarlo" and "s5_ruido" not in st.session_state.grupo_actual["casos_resueltos"]:
-            st.success("Excelente criterio ético y metodológico. La ciencia exige transparencia. +15 XP Epistémico.")
-            ganar_xp(epistemico=15)
-            st.session_state.grupo_actual["casos_resueltos"].append("s5_ruido")
-            save_group_data(st.session_state.grupo_actual)
 
-    st.divider()
-    st.markdown("## ⚠️ Simulación de Incertidumbre")
-    st.warning("¡Alerta en el Laboratorio! El software de decisión léxica ha arrojado los siguientes tiempos de reacción (TR) para la condición experimental. Hay una anomalía evidente.")
+    with st.expander("⚠️ Expediente 20: Simulación de Incertidumbre"):
+        st.warning(
+            "¡Alerta en el Laboratorio! El software de decisión léxica ha arrojado los siguientes tiempos de reacción (TR) para la condición experimental. Hay una anomalía evidente."
+        )
 
-    datos_simulados = {
-        "Sujeto": [1, 2, 3, 4, 5],
-        "TR (Milisegundos)": [580, 610, 4000, 595, 620],
-        "Respuesta": ["Correcta", "Correcta", "Incorrecta", "Correcta", "Correcta"],
-    }
-    st.table(datos_simulados)
+        datos_simulados = {
+            "Sujeto": [3, 4, 5, 6, 7],
+            "TR (Milisegundos)": [580, 610, 4000, 595, 620],
+            "Respuesta": ["Correcta", "Correcta", "Incorrecta", "Correcta", "Correcta"],
+        }
+        st.table(datos_simulados)
 
-    interpretacion = st.text_area(
-        "Bitácora de Laboratorio: ¿Cómo manejas el 'outlier' del Sujeto 3 en tu análisis? ¿Qué pudo haber causado este ruido metodológico?"
-    )
-    if st.button("Registrar Análisis Crítico del Ruido"):
-        if len(interpretacion.strip()) > 50:
-            st.session_state.grupo_actual["perfil_grupal"]["identidad_puntos"]["experimental"] += 15
-            ganar_xp(epistemico=20)
-            st.success("Rigor metodológico validado. Sabes interrogar al ruido. +20 XP Epistémico.")
-            save_group_data(st.session_state.grupo_actual)
+        from utils_expedientes import evaluar_calidad_respuesta_abierta
+
+        # Estado
+        grupo = st.session_state.grupo_actual
+        respuestas = grupo.setdefault("perfil_grupal", {}).setdefault("respuestas_expedientes", {})
+
+        expediente_id = "s5_simulacion_ruido"
+
+        # Si ya respondió → bloquear edición
+        if expediente_id in respuestas:
+            respuesta_guardada = respuestas[expediente_id]["respuesta"]
+            st.info("Ya registraste este análisis en la bitácora de laboratorio.")
+            st.markdown(f"**Tu respuesta:** {respuesta_guardada}")
         else:
-            st.error("Debes argumentar mejor tu decisión metodológica (mínimo 50 caracteres).")
+            interpretacion = st.text_area(
+                "Bitácora de Laboratorio: ¿Cómo manejas el 'outlier' del Sujeto 5 en tu análisis? ¿Qué pudo haber causado este ruido metodológico? (Pista: utiliza conceptos como 'variable de confusión' o 'amenaza a la validez')",
+                key="s5_expediente_18_outlier",
+            )
+
+            if st.button("Registrar Análisis Crítico del Ruido", key="btn_s5_expediente_18"):
+
+                resultado = evaluar_calidad_respuesta_abierta(
+                    interpretacion,
+                    conceptos_clave=[
+                        "outlier",
+                        "valor atípico",
+                        "variable de confusión",
+                        "validez",
+                        "fatiga",
+                        "distracción",
+                        "ruido",
+                        "error",
+                        "sesgo",
+                        "tiempo de reacción",
+                    ],
+                    min_caracteres=120,
+                    min_palabras=20,
+                    min_conceptos=2,
+                )
+
+                if resultado["valida"]:
+                    # Guardar respuesta
+                    respuestas[expediente_id] = {
+                        "respuesta": interpretacion,
+                        "miembro": st.session_state.miembro_actual,
+                    }
+
+                    # Identidad (como ya hacías)
+                    grupo["perfil_grupal"]["identidad_puntos"]["experimental"] += 15
+
+                    # XP
+                    ganar_xp(epistemico=20)
+
+                    # Marcar caso resuelto
+                    grupo.setdefault("casos_resueltos", []).append(expediente_id)
+
+                    save_group_data(grupo)
+
+                    st.success("Rigor metodológico validado. Sabes interrogar al ruido.")
+                    st.rerun()
+
+                else:
+                    st.error("Tu respuesta aún no cumple con los criterios metodológicos mínimos.")
+                    for problema in resultado["problemas"]:
+                        st.warning(f"• {problema}")
 
     st.divider()
     st.markdown("## 🎯 Misión Final: Protocolo Experimental e Informe (20%)")
@@ -1015,7 +1465,35 @@ def render_semana_5():
                 st.balloons()
                 st.success("¡MISIÓN CUMPLIDA! Has completado el informe final y consolidado tu identidad como Erudito Psicolingüístico. +200 Mission XP.")
                 st.rerun()
+    
+        informe_final = st.session_state.grupo_actual["entregas"].get("f5_informe_final")
 
+    if informe_final:
+        st.divider()
+
+        with st.expander("🚀 Expediente 21: El dilema de la Generalización (Validez Externa)"):
+            st.markdown(
+                """
+                **¡Has finalizado tu entrenamiento!**
+
+                Has completado el ciclo científico desde la observación infantil en ambientes naturales hasta la experimentación en adultos bajo condiciones de laboratorio. Lograste aislar variables y controlar el ruido empírico. Pero la ciencia rigurosa tiene un precio: el dilema del control.
+                """
+            )
+
+            resolver_expediente_opcion_unica(
+                expediente_id="s5_generalizacion",
+                pregunta="Si tu experimento de lectura fue extremadamente controlado (aislaste al sujeto frente a una pantalla negra, leyendo sílaba por sílaba en milisegundos), obtuviste una alta validez interna. Sin embargo, metodológicamente, ¿qué has sacrificado a cambio?",
+                opciones=[
+                    "Selecciona...",
+                    "La fiabilidad y precisión estadística de los datos recogidos.",
+                    "La capacidad de eliminar las variables de confusión (como el ruido ambiente).",
+                    "La validez externa, es decir, la posibilidad de generalizar esos resultados a una situación de lectura normal y cotidiana.",
+                ],
+                respuesta_correcta="La validez externa, es decir, la posibilidad de generalizar esos resultados a una situación de lectura normal y cotidiana.",
+                feedback_correcto="Correcto. Al aumentar el control experimental, suele reducirse la generalización a contextos cotidianos.",
+                feedback_incorrecto="Respuesta registrada. Revisa la relación entre validez interna y externa.",
+                xp_epistemico=15,
+            )
 
 def render_estudiante() -> None:
     grupo = st.session_state.get("grupo_actual", {})
