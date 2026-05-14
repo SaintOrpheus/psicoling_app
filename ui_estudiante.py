@@ -256,7 +256,7 @@ def render_semana_1():
             respuesta_correcta="Desplazamiento",
             feedback_correcto="Correcto. Aquí aparece la capacidad de referirse a hechos no presentes.",
             feedback_incorrecto="Respuesta registrada. Revisa la propiedad de desplazamiento: permite hablar de hechos no presentes, como sueños, recuerdos o ficción.",
-            xp_epistemico=10,
+            xp_epistemico=15,
         )
 
     with st.expander("⚖️ Expediente 02: ¿Adquisición, Aprendizaje o Construcción?"):
@@ -593,7 +593,7 @@ def render_semana_1():
                     }
 
                     st.session_state.grupo_actual["perfil_grupal"]["identidad_puntos"]["desarrollo"] += 10
-                    ganar_xp(mision=200)
+                    ganar_xp(mision=200, epistemico=35)
                     st.success("✅ Diseño observacional inicial sellado. En la Semana 2 podrás concentrarte en el trabajo de campo y el informe de observación.")
                     st.balloons()
                     st.rerun()
@@ -847,7 +847,7 @@ def render_semana_2():
                     "evidencia_link": evidencia_link.strip(),
                 }
 
-                ganar_xp(mision=200, epistemico=25)
+                ganar_xp(mision=200, epistemico=35)
                 save_group_data(st.session_state.grupo_actual)
 
                 st.success("✅ Informe de observación sellado. Has convertido el trabajo de campo en análisis psicolingüístico.")
@@ -1078,7 +1078,7 @@ def render_semana_3():
                     "link": link_j.strip(),
                 }
 
-                ganar_xp(mision=150, epistemico=25)
+                ganar_xp(mision=150, epistemico=35)
                 st.session_state.grupo_actual["perfil_grupal"]["identidad_puntos"]["aplicada"] += 15
                 save_group_data(st.session_state.grupo_actual)
 
@@ -1111,7 +1111,7 @@ def render_semana_4():
             respuesta_correcta="Comprensión",
             feedback_correcto="Correcto.",
             feedback_incorrecto="Respuesta registrada. Revisa la diferencia: la comprensión va del estímulo lingüístico al significado; la producción va de la intención al habla.",
-            xp_epistemico=10,
+            xp_epistemico=15,
         )
 
     with st.expander("🏛️ Expediente 15: Modelos de procesamiento"):
@@ -1191,17 +1191,31 @@ def render_semana_4():
             )
 
             resolver_expediente_opcion_unica(
-                expediente_id="s4_confusion",
-                pregunta="Si en tu experimento comparas el tiempo de reacción ante palabras frecuentes vs. poco frecuentes, pero resulta que todas las palabras frecuentes eran cortas y las poco frecuentes eran muy largas, la 'longitud de la palabra' se ha convertido en:",
+                expediente_id="s4_mortalidad_diferencial",
+                pregunta=(
+                    "Si varios participantes abandonan el experimento antes de terminar, "
+                    "y esos abandonos se concentran en una condición específica, ¿qué amenaza "
+                    "metodológica aparece?"
+                ),
                 opciones=[
                     "Selecciona...",
-                    "Una variable de control aleatorizada con éxito.",
-                    "Una segunda variable dependiente del experimento.",
-                    "Una variable de confusión que arruina la validez interna.",
+                    "Una mejora de la validez externa, porque solo permanecen los participantes más motivados.",
+                    "Una amenaza por mortalidad diferencial, porque la pérdida desigual de participantes puede sesgar los resultados.",
+                    "Una variable dependiente secundaria, porque el abandono reemplaza automáticamente al tiempo de reacción.",
                 ],
-                respuesta_correcta="Una variable de confusión que arruina la validez interna.",
-                feedback_correcto="Correcto. Una variable que cambia junto con la VI amenaza la validez interna del experimento.",
-                feedback_incorrecto="Respuesta registrada. Revisa la variable de confusión: es una variable no controlada que covaría con la VI y amenaza la interpretación causal.",
+                respuesta_correcta=(
+                    "Una amenaza por mortalidad diferencial, porque la pérdida desigual de participantes puede sesgar los resultados."
+                ),
+                feedback_correcto=(
+                    "Correcto. La mortalidad diferencial ocurre cuando la pérdida de participantes "
+                    "no se distribuye de manera equivalente entre condiciones o grupos, lo que puede "
+                    "sesgar la interpretación de los resultados."
+                ),
+                feedback_incorrecto=(
+                    "Respuesta registrada. Revisa la idea de mortalidad diferencial: el problema no "
+                    "es solo que algunos participantes abandonen, sino que el abandono se concentre "
+                    "en una condición o grupo y distorsione la comparación."
+                ),
                 xp_epistemico=15,
             )
 
@@ -1292,7 +1306,7 @@ def render_semana_4():
                     "fundamento": fundamento,
                 }
 
-                ganar_xp(mision=200, epistemico=20)
+                ganar_xp(mision=200, epistemico=35)
                 st.session_state.grupo_actual["perfil_grupal"]["identidad_puntos"]["experimental"] += 15
                 save_group_data(st.session_state.grupo_actual)
                 st.success("✅ Diseño experimental registrado. En la siguiente fase trabajarás con datos.")
@@ -1460,7 +1474,7 @@ def render_semana_5():
                     "contraste": contraste.strip(),
                     "discusion": discusion.strip(),
                 }
-                ganar_xp(mision=200, epistemico=50)
+                ganar_xp(mision=200, epistemico=35)
                 save_group_data(st.session_state.grupo_actual)
                 st.balloons()
                 st.success("¡MISIÓN CUMPLIDA! Has completado el informe final y consolidado tu identidad como Erudito Psicolingüístico. +200 Mission XP.")
