@@ -46,19 +46,32 @@ def obtener_compromiso_activo() -> str:
 
 def barra_estatus() -> None:
     grupo = st.session_state.grupo_actual
-    xp_m = grupo["progreso"]["xp_mision"]
-    xp_e = grupo["progreso"]["xp_epistemico_grupal"]
+
+    xp_m = grupo["progreso"].get("xp_mision", 0)
     identidad = calcular_identidad_grupal()
-    nota_est = round((xp_m / 1000) * 5, 1)
     compromiso = obtener_compromiso_activo()
     miembro = st.session_state.miembro_actual or "---"
+
+    seguimiento = grupo.get("seguimiento_individual", {})
+    xp_epistemico_individual = seguimiento.get(
+        miembro, {}
+    ).get("xp_epistemico", 0)
+
+    xp_epistemico_mostrado = min(xp_epistemico_individual, 500)
 
     st.markdown(
         f"""
         <div class="status-bar">
             <div style="display: flex; justify-content: space-between; align-items: center; color: #111827; font-size: 1.1rem; font-weight: 600; gap: 20px; flex-wrap: wrap;">
-                <div><b>👥 Grupo:</b> {grupo['grupo']['grupo_id']} | <b>👤 Miembro activo:</b> {miembro} | <b>🆔 Perfil:</b> {identidad}</div>
-                <div><b>🎓 Nota Est.:</b> {nota_est} | <b>✨ XP Epistémico grupal:</b> {xp_e}</div>
+                <div>
+                    <b>👥 Grupo:</b> {grupo['grupo']['grupo_id']} |
+                    <b>👤 Miembro activo:</b> {miembro} |
+                    <b>🆔 Perfil:</b> {identidad}
+                </div>
+                <div>
+                    <b>📊 Progreso grupal:</b> {xp_m}/1000 XP |
+                    <b>✨ Mi XP Epistémico:</b> {xp_epistemico_mostrado}/500
+                </div>
             </div>
             <div class="commitment-box">
                 <b>📍 Compromiso actual:</b> {compromiso}
@@ -68,7 +81,10 @@ def barra_estatus() -> None:
         unsafe_allow_html=True,
     )
 
-    st.progress(xp_m / 1000, text=f"Progreso evaluativo grupal ({xp_m}/1000 XP)")
+    st.progress(
+        min(xp_m / 1000, 1.0),
+        text=f"Progreso grupal ({xp_m}/1000 XP)"
+    )
 
 def cerrar_sesion_estudiante() -> None:
     save_group_data(st.session_state.grupo_actual)
